@@ -1,5 +1,6 @@
 # coding: utf-8
 require 'mechanize'
+require_relative './character'
 
 module DQXTools
   # 1. GET  http://hiroba.dqx.jp/sc/login/ -> redirect
@@ -30,6 +31,10 @@ module DQXTools
       "#<DQXTools::Session: #{@username}#{@cid && " (#{@cid})"}#{@logined ? ' logined' : ''}>"
     end
 
+    def character
+      Character.new(@cid, agent: self.agent)
+    end
+
     private
 
     def login
@@ -48,12 +53,12 @@ module DQXTools
       raise LoginError, "Failed to login (No Character exists or failed to get session)" if characterselect.at(".imgnochara")
 
       characterselect.form_with(action: "/sc/login/characterexec") do |form|
-        form['cid'] = @cid || characterselect.at("a.button.submitBtn.charselect.centering")['rel']
+        form['cid'] = (@cid ||= characterselect.at("a.button.submitBtn.charselect.centering")['rel'])
         form.submit
       end
 
       mypage = @agent.get("http://hiroba.dqx.jp/sc/home/")
-      raise LoginError, "failed to login..." unless /マイページ/ === mypage.title
+      raise LoginError, "Failed to login... (can't show mypage)" unless /マイページ/ === mypage.title
 
       @logined = true
     end

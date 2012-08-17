@@ -6,15 +6,26 @@ require_relative './parameter'
 
 module DQXTools
   class Character
-    def initialize(url, options={})
-      @url = url.gsub(/\/+$/,'')+"/"
+    def initialize(cid_or_url, options={})
+      case cid_or_url
+      when Integer
+        @cid = cid_or_url.to_s
+      when /^\d+$/
+        @cid = cid_or_url
+      when %r|^http://hiroba.dqx.jp/sc/character/(\d+?)/?$|
+        @cid = $1
+      else
+        raise ArgumentError, "seems cid_or_url is not cid or character page url"
+      end
+
+      @url = "http://hiroba.dqx.jp/sc/character/#{@cid}/"
       @status_url = "#{@url}status"
       @detail = options[:detail]
       @agent = options[:agent]
       update
     end
 
-    attr_reader :url, :name, :message,
+    attr_reader :url, :name, :message, :cid,
                 :server, :field,
                 :image, :equipments, :parameter, :skills,
                 :support_message, :skill_point, :spells, :specials,
