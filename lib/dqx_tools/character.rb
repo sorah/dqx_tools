@@ -2,10 +2,13 @@
 require 'open-uri'
 require 'nokogiri'
 require_relative './equipments'
+require_relative './util'
 require_relative './parameter'
 
 module DQXTools
   class Character
+    class UnauthorizedError < StandardError; end
+
     def initialize(cid_or_url, options={})
       case cid_or_url
       when Integer
@@ -25,28 +28,40 @@ module DQXTools
       update
     end
 
-    attr_reader :url, :name, :message, :cid,
-                :server, :field,
+    attr_reader :url, :name, :message, :cid, :title,
+                :server, :field, :employer_name,
                 :image, :equipments, :parameter, :skills,
                 :support_message, :skill_point, :spells, :specials,
-                :id, :species, :gender, :job, :level
+                :id, :species, :gender, :job, :level, :charge, :team,
+                :exp_by_support, :gold_by_support, :reputation_by_support
     attr_accessor :detail
 
     def supportable?; !@support_message.nil?; end
+    def employer; @employer ? Character.new(@employer, agent: @agent) : nil; end
 
     def inspect
       "#<#{self.class.name}:#{id} #{name} Lv#{level}>"
     end
 
     def update(detail=@detail)
-      n = Nokogiri::HTML(open(@url))
+      n = Util.get_page(@url, agent: @agent)
 
-      @id, @species, @gender, @job, @level = n.search("#myCharacterStatusList dd").map(&:inner_text)
-      @id.gsub!(/^：/,'')
+      error = n.at(".error_common")
+      if error && error.inner_text.include?("このページは非公開に設定されています。")
+        raise UnauthorizedError, "can't see this character"
+      end
+
+      @id, @species, @gender, @job, @level, @charge = n.search("#myCharacterStatusList dd").map{|x| x.inner_text.gsub!(/^： ?/,'') }
       @level = @level.to_i
+      @charge = @charge.to_i if @charge
+
+      @team = n.at("#myTeamStatusList dd a").inner_text
+      @team_id = n.at("#myTeamStatusList dd a")['href'].match(%r|/sc/team/(\d+)/top/?$|)[1]
 
       @name = n.at("#cttTitle").inner_text
       @message = n.at("div.message p").inner_text
+
+      @title = n.at("p#myCharacterTitle").inner_text
 
       @server, @field = n.search("div.where dd").map(&:inner_text)
       @server = nil if @server == "--"
@@ -61,9 +76,17 @@ module DQXTools
 
       @equipments = Equipments.new(n.search("div.equipment table td").map(&:inner_text))
 
+      employer = n.at("table#employer")
+      if employer
+        @employer = n.at("table#employer a")['href'].match(%r|/sc/character/(\d+)/?$|)[1]
+        @employer_name = n.at("table#employer a").inner_text
+
+        @exp_by_support, @gold_by_support, @reputation_by_support = n.search(".support .value dd"){|x| x.inner_text.gsub(/[^\d]/,'').to_i }
+      end
+
       return self unless @detail
 
-      n = Nokogiri::HTML(open(@status_url))
+      n = Util.get_page(@status_url, agent: @agent)
 
       @parameter = Parameter.new(n.search("div.parameter td").map(&:inner_text))
       @skill_points = Hash[n.search("div.skill tr").map{|x| [x.children[0].inner_text, x.children[2].inner_text.to_i] }]
