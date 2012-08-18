@@ -80,9 +80,8 @@ module DQXTools
       if employer
         @employer = n.at("table#employer a")['href'].match(%r|/sc/character/(\d+)/?$|)[1]
         @employer_name = n.at("table#employer a").inner_text
-
-        @exp_by_support, @gold_by_support, @reputation_by_support = n.search(".support .value dd"){|x| x.inner_text.gsub(/[^\d]/,'').to_i }
       end
+      @exp_by_support, @gold_by_support, @reputation_by_support = n.search(".support .value dd").map {|x| x.inner_text.gsub(/[^\d]/,'').to_i }
 
       return self unless @detail
 
