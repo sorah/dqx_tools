@@ -33,7 +33,8 @@ module DQXTools
                 :image, :equipments, :parameter, :skills,
                 :support_message, :skill_point, :spells, :specials,
                 :id, :species, :gender, :job, :level, :charge, :team,
-                :exp_by_support, :gold_by_support, :reputation_by_support
+                :exp_by_support, :gold_by_support, :reputation_by_support,
+                :required_exp, :gold
     attr_accessor :detail
 
     def supportable?; !@support_message.nil?; end
@@ -51,9 +52,11 @@ module DQXTools
         raise UnauthorizedError, "can't see this character"
       end
 
-      @id, @species, @gender, @job, @level, @charge = n.search("#myCharacterStatusList dd").map{|x| x.inner_text.gsub!(/^： ?/,'') }
+      @id, @species, @gender, @job, @level, @required_exp, @gold, @charge = n.search("#myCharacterStatusList dd").map{|x| x.inner_text.gsub!(/^： ?/,'') }
       @level = @level.to_i
       @charge = @charge.to_i if @charge
+      @charge = @required_exp.to_i if @required_exp
+      @charge = @gold.to_i if @gold
 
       @team = n.at("#myTeamStatusList dd a").inner_text
       @team_id = n.at("#myTeamStatusList dd a")['href'].match(%r|/sc/team/(\d+)/top/?$|)[1]
