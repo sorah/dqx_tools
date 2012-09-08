@@ -1,3 +1,3 @@
-module DqxTools
+module DQXTools
   VERSION = "0.0.1"
 end
